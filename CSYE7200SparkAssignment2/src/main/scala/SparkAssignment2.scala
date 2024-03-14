@@ -8,19 +8,18 @@ import org.apache.spark.sql.types.DoubleType
 
 object SparkAssignment2 {
     def main(args: Array[String]): Unit = {
-        // Initialize SparkSession
+
         val spark = SparkSession.builder()
           .appName("Titanic Survival Prediction")
           .master("local[*]") // Change this to run on a cluster
           .getOrCreate()
 
-        // Load train.csv
+
         val trainDF = spark.read
           .option("header", "true")
           .option("inferSchema", "true")
           .csv("src\\main\\resources\\train.csv")
 
-        // Perform Exploratory Data Analysis (EDA)
         trainDF.describe().show()
 
         //Feature Enginerring
@@ -38,17 +37,17 @@ object SparkAssignment2 {
 
         val cleanedDF = analysisData.na.drop()
 
-        // Split data into training and testing sets
+
         val Array(trainingData, testData) = cleanedDF.randomSplit(Array(0.7, 0.3))
 
         // Train a Random Forest model
         val rf = new RandomForestClassifier()
           .setLabelCol("Survived")
           .setFeaturesCol("features")
-          .setNumTrees(10) // Set the number of trees
-          .setMaxDepth(5) // Set the maximum depth of the trees
+          .setNumTrees(10)
+          .setMaxDepth(5)
 
-        // Create a VectorAssembler to combine features into a single vector
+
         val assembler = new VectorAssembler()
           .setInputCols(cleanedDF.columns.filter(_ != "Survived")) // Drop the label column
           .setOutputCol("features")
@@ -58,10 +57,10 @@ object SparkAssignment2 {
         val pipeline = new Pipeline().setStages(Array(assembler, rf))
         val model = pipeline.fit(trainingData)
 
-        // Make predictions on test data
+
         val predictions = model.transform(testData)
 
-        // Evaluate the model
+
         val evaluator = new BinaryClassificationEvaluator()
           .setLabelCol("Survived")
           .setRawPredictionCol("prediction")
@@ -78,10 +77,10 @@ object SparkAssignment2 {
           .option("inferSchema", "true")
           .csv("src\\main\\resources\\test.csv")
 
-        // Preprocess test data
+
         val testRemoveDF = testDF.drop("Cabin")
         val testCombineDF = testRemoveDF.withColumn("Family", col("SibSp") + col("Parch"))
-        val testFinalDF = testCombineDF.drop("SibSp", "Parch", "Ticket", "Name")
+        val testFinalDF = testCombineDF.drop("SibSp", "Parch", "Ticket")
 
         val testAnalysisData = testFinalDF.withColumn("Sex", when(col("Sex") === "male", 0).otherwise(1))
           .withColumn("Embarked", when(col("Embarked") === "Q", 0)
@@ -91,13 +90,13 @@ object SparkAssignment2 {
 
         val testCleanedDF = testAnalysisData.na.drop()
 
-        // Make predictions on test data
+
         val testPredictions = model.transform(testCleanedDF)
 
-        // Show predicted survival results
-        testPredictions.select("PassengerId", "prediction").show()
 
-        // Stop SparkSession
+        testPredictions.select("PassengerId", "Name","prediction").show()
+
+
         spark.stop()
     }
 }
